@@ -8,7 +8,6 @@ library(dplyr)
 library(ggplot2)
 library(tidyr)
 library(tibble)
-library(nflreadr)
 library(nflplotR)
 
 # -----------------------------
@@ -27,22 +26,18 @@ empty_schedules <- tibble(
   home_score = numeric(), away_score = numeric()
 )
 
-empty_pbp <- tibble(
-  game_id = character(), penalty = integer(),
-  penalty_team = character(), penalty_yards = numeric()
-)
 
 seasons <- 2018:2023
 
-schedules_raw <- safe_load(nflreadr::load_schedules(seasons), "schedules")
-pbp_raw       <- safe_load(nflreadr::load_pbp(seasons), "pbp")
+# Data is precomputed from nflverse (nflreadr::load_pbp / load_schedules,
+# seasons 2018-2023) by scripts/build_data.R, so the app starts fast.
+schedules_raw <- safe_load(read.csv("data/schedules.csv", stringsAsFactors = FALSE), "schedules")
+pen_raw       <- safe_load(read.csv("data/penalties_by_game.csv", stringsAsFactors = FALSE), "penalties")
 
 schedules <- if (is.null(schedules_raw)) empty_schedules else
   schedules_raw |>
   filter(!is.na(home_score), !is.na(away_score)) |>
   mutate(season = as.integer(season))
-
-pbp <- if (is.null(pbp_raw)) empty_pbp else pbp_raw
 
 # -----------------------------
 # Team-game outcomes
@@ -73,19 +68,15 @@ games_long <- schedules |>
 # -----------------------------
 # Penalties (against each team)
 # -----------------------------
-penalties <- pbp |>
-  filter(penalty == 1, !is.na(penalty_team)) |>
-  select(game_id, penalty_team, penalty_yards)
-
-penalties_against <- penalties |>
-  group_by(game_id, penalty_team) |>
-  summarise(
-    penalties_against     = n(),
-    penalty_yards_against = sum(penalty_yards, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  rename(team = penalty_team) |>
-  mutate(team = as.character(team))
+penalties_against <- if (is.null(pen_raw)) {
+  tibble(game_id = character(), team = character(),
+         penalties_against = integer(), penalty_yards_against = numeric())
+} else {
+  pen_raw |>
+    rename(team = penalty_team) |>
+    mutate(team = as.character(team),
+           penalties_against = as.integer(penalties_against))
+}
 
 # -----------------------------
 # Merge + margins
