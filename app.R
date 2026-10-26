@@ -149,35 +149,41 @@ ui <- fluidPage(
   titlePanel("NFL Penalty and Yard Margin vs Winning Percentage"),
   sidebarLayout(
     sidebarPanel(
-      selectInput("season", "Season:", choices = season_choices, selected = max(season_choices)),
+      # Each tab uses different controls, so only show the ones that apply
+      conditionalPanel("input.tab != 'Trends'",
+        selectInput("season", "Season:", choices = season_choices, selected = max(season_choices))
+      ),
       radioButtons("phase", "Game Type:",
                    choices = c("Regular Season" = "REG", "Playoffs" = "POST"),
                    selected = "REG"),
-      radioButtons("homeaway", "Game Location:",
-                   choices = c("Overall" = "overall", "Home Games Only" = "home", "Away Games Only" = "away"),
-                   selected = "overall"),
-      radioButtons("xmetric", "X-Axis Metric:",
-                   choices = c("Penalty Margin" = "penalty", "Yard Margin" = "yard"),
-                   selected = "penalty"),
-      
-      selectizeInput("team_filter", "Team (for Trends):",
-                     choices = c("All teams" = "ALL", setNames(team_choices, team_choices)),
-                     selected = "ALL",
-                     options = list(placeholder = "Choose a team or keep All")),
-      
-      sliderInput("trend_seasons", "Trends seasons:",
-                  min = min(season_choices), max = max(season_choices),
-                  value = c(min(season_choices), max(season_choices)),
-                  step = 1, sep = ""),
-      
-      checkboxInput("trend_show_reg", "Trends: show regression line", value = FALSE),
-      checkboxInput("ttest_show_reg",  "T-Test: show regression line",  value = TRUE),
+      conditionalPanel("input.tab == 'Plot'",
+        radioButtons("homeaway", "Game Location:",
+                     choices = c("Overall" = "overall", "Home Games Only" = "home", "Away Games Only" = "away"),
+                     selected = "overall"),
+        radioButtons("xmetric", "X-Axis Metric:",
+                     choices = c("Penalty Margin" = "penalty", "Yard Margin" = "yard"),
+                     selected = "penalty")
+      ),
+      conditionalPanel("input.tab == 'Trends'",
+        selectizeInput("team_filter", "Team:",
+                       choices = c("All teams" = "ALL", setNames(team_choices, team_choices)),
+                       selected = "ALL",
+                       options = list(placeholder = "Choose a team or keep All")),
+        sliderInput("trend_seasons", "Seasons shown:",
+                    min = min(season_choices), max = max(season_choices),
+                    value = c(min(season_choices), max(season_choices)),
+                    step = 1, sep = ""),
+        checkboxInput("trend_show_reg", "Show regression line", value = FALSE)
+      ),
+      conditionalPanel("input.tab == 'T-Test'",
+        checkboxInput("ttest_show_reg", "Show regression line", value = TRUE)
+      ),
       
       helpText("Penalty margin = penalties on opponent - penalties on your team."),
       helpText("Yard margin = penalty yards on opponent - penalty yards against your team.")
     ),
     mainPanel(
-      tabsetPanel(
+      tabsetPanel(id = "tab",
         tabPanel("Plot", br(), plotOutput("scatter", height = "600px")),
         tabPanel("Summary Table", br(), tableOutput("summary_table")),
         tabPanel("Trends", br(),
